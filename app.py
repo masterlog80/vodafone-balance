@@ -94,12 +94,12 @@ def _safe_url_path(raw_url):
     """Keep endpoint shape while removing query strings and likely personal identifiers."""
     path = urlsplit(raw_url).path or "/"
     path = re.sub(r"(?i)[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}", "{id}", path)
-    path = re.sub(r"(?<![A-Za-z])\d{5,}(?![A-Za-z])", "{id}", path)
+    path = re.sub(r"\d{5,}", "{id}", path)
     parts = []
     for part in path.split("/"):
         if "@" in part or len(part) > 48:
             part = "{redacted}"
-        elif len(part) >= 16 and re.search(r"\d", part) and re.fullmatch(r"[A-Za-z0-9_-]+", part):
+        elif len(part) >= 10 and re.search(r"\d", part) and re.fullmatch(r"[A-Za-z0-9._-]+", part):
             part = "{id}"
         parts.append(part)
     return "/".join(parts)[:240] or "/"

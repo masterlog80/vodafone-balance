@@ -15,7 +15,7 @@ from flask import Flask, Response, jsonify, request
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
 APP_NAME = "Vodafone Balance"
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.2.0"
 VODAFONE_LOGIN_URL = "https://www.vodafone.it/area-utente/fai-da-te/Common/PaginaUnicadiLogin.html"
 PROFILE_DIR = Path(os.getenv("PROFILE_DIR", "/data/profile"))
 APP_USERNAME = os.getenv("APP_USERNAME", "")
@@ -24,7 +24,7 @@ PORT = int(os.getenv("PORT", "8080"))
 STARTED_AT = datetime.now(timezone.utc).isoformat(timespec="seconds")
 POD_NAME = os.getenv("POD_NAME", "")
 POD_NAMESPACE = os.getenv("POD_NAMESPACE", "default")
-FALLBACK_IMAGE = os.getenv("IMAGE_NAME", "ghcr.io/masterlog80/vodafone-balance:latest")
+FALLBACK_IMAGE = os.getenv("IMAGE_NAME", "zot.salvetti.info/vodafone-balance:latest")
 
 app = Flask(__name__)
 browser_state = {"page": None, "context": None, "last_check": None, "last_balance": None, "last_error": None}

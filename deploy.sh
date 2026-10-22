@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-NAMESPACE="${NAMESPACE:-default}"
+NAMESPACE="default"
 MANIFEST="${MANIFEST:-deploy/kubernetes.yaml}"
 SECRET_NAME="vodafone-balance-auth"
 

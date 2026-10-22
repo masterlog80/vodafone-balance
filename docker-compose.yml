@@ -1,13 +1,13 @@
 services:
   vodafone-balance:
-    image: ghcr.io/masterlog80/vodafone-balance:latest
+    image: zot.salvetti.info/vodafone-balance:latest
     container_name: vodafone-balance
     restart: unless-stopped
     environment:
       APP_USERNAME: ${APP_USERNAME:?Set APP_USERNAME in your environment}
       APP_PASSWORD: ${APP_PASSWORD:?Set APP_PASSWORD in your environment}
       PROFILE_DIR: /data/profile
-      IMAGE_NAME: ghcr.io/masterlog80/vodafone-balance:latest
+      IMAGE_NAME: zot.salvetti.info/vodafone-balance:latest
     ports:
       - "127.0.0.1:8080:8080"
       # noVNC is bound to localhost only; never publish it publicly.

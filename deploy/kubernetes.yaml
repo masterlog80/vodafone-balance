@@ -13,7 +13,6 @@ metadata:
 rules:
   - apiGroups: [""]
     resources: ["pods"]
-    resourceNames: ["vodafone-balance"]
     verbs: ["get"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1

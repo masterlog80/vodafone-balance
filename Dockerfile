@@ -17,7 +17,7 @@ LABEL org.opencontainers.image.title="Vodafone Balance" \
       org.opencontainers.image.source="https://github.com/masterlog80/vodafone-balance" \
       org.opencontainers.image.url="https://github.com/masterlog80/vodafone-balance" \
       org.opencontainers.image.documentation="https://github.com/masterlog80/vodafone-balance" \
-      org.opencontainers.image.version="1.0" \
+      org.opencontainers.image.version="1.2" \
       org.opencontainers.image.created="2026-10-22T00:00:00Z"
 
 WORKDIR /app

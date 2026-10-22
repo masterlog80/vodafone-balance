@@ -8,11 +8,9 @@ A self-hosted dashboard for checking the remaining credit on a Vodafone Italy pr
 
 - Dark responsive UI in the same style as my other self-hosted dashboards.
 - Shows the **app name, startup time, application version and live Kubernetes image name:tag** in the bottom bar.
-- Reads the running image from the current Pod object using a dedicated ServiceAccount with only `get` permission on that Pod.
+- Reads the running image from the current Pod object using a dedicated ServiceAccount with read-only Pod access.
 - Manual Vodafone login and SMS MFA; the browser profile persists on a PVC.
 - HTTP Basic Authentication on the UI and API.
-- JSON API for balance/status and a deploy script.
-- Multi-architecture container image for `linux/amd64` and `linux/arm64`.
 
 ## Screenshots
 
@@ -26,70 +24,68 @@ A self-hosted dashboard for checking the remaining credit on a Vodafone Italy pr
 
 Screenshots are illustrative UI previews; the displayed balance and runtime values are sample data, not a live Vodafone account.
 
-## Deploy to K3s
+## Clone & build
 
-The included manifest deploys everything in the `default` namespace. It creates the ServiceAccount, namespace-scoped Role/RoleBinding, PVC, Deployment and ClusterIP Service. The application ServiceAccount has read-only `get` access to Pod objects in `default` (no list/watch access, Secrets, or other resource types). The app only requests its own Pod by name to display the image actually running.
+Use the shared [masterlog80/homelab-scripts](https://github.com/masterlog80/homelab-scripts) workflow, as with the other homelab applications. It clones the repository, updates the Docker image metadata/version, builds the image, pushes versioned and `latest` tags to `zot.salvetti.info`, then offers deployment to K3s or Docker Compose based on the host.
 
-### 1. Deploy using the script
+```bash
+export REPO="masterlog80/vodafone-balance"
+export DIRNAME="vodafone-balance"
+export REGISTRY="zot.salvetti.info"
+export IMAGE_NAME="vodafone-balance"
+export COMPOSE_FILE="docker-compose.yml"
+export K3S_MANIFEST="deploy/kubernetes.yaml"
+export OPERATIONS=""
 
-Run from a clone of this repository. The script prompts for UI credentials (password input is hidden), creates/updates the Kubernetes Secret without saving credentials in Git, applies the manifest, and waits for rollout:
+GH_TOKEN="${GH_TOKEN:-$GITHUB_TOKEN}"
+[[ -z "$GH_TOKEN" ]] && read -s -p "GitHub token (required - homelab-scripts is private): " GH_TOKEN && echo
+export GH_TOKEN
 
-```sh
-git clone https://github.com/masterlog80/vodafone-balance.git
-cd vodafone-balance
-chmod +x deploy.sh
-./deploy.sh
+bash -c "$(curl -fsSL -H "Authorization: token ${GH_TOKEN}" https://raw.githubusercontent.com/masterlog80/homelab-scripts/main/clone-build.sh)"
 ```
 
-You can pass credentials non-interactively, for example from a secret manager or CI:
+The script requires Docker, curl, Git, and (for the pending pull-request check/version detection) `jq`. It asks for confirmation before pushing each tag and before deployment. Because `homelab-scripts` is private, a GitHub token with permission to read that repository is required.
 
-```sh
-APP_USERNAME='my-user' APP_PASSWORD='use-a-long-random-password' ./deploy.sh
+The Dockerfile version label is the source of the initial version; the shared script proposes the next version based on tags already present in the registry. The Kubernetes manifest uses `zot.salvetti.info/vodafone-balance:latest`.
+
+## Kubernetes resources
+
+The manifest deploys into the `default` namespace and creates the ServiceAccount, namespace-scoped Role/RoleBinding, PVC, Deployment and ClusterIP Service. The application ServiceAccount has `get` permission for Pod objects only; it does not have permission to list/watch Pods or read Secrets. The application queries its own Pod by name to display the running image.
+
+The app requires a secret named `vodafone-balance-auth` in namespace `default`, with keys `username` and `password`. Create it before deployment if it does not already exist:
+
+```bash
+kubectl create secret generic vodafone-balance-auth -n default \
+  --from-literal=username='YOUR_UI_USERNAME' \
+  --from-literal=password='USE_A_LONG_RANDOM_PASSWORD' \
+  --dry-run=client -o yaml | kubectl apply -f -
 ```
 
-The script needs `kubectl` configured for your K3s cluster. The application itself needs no Python, Playwright, Chromium or other application modules installed on the host.
+## Access the UI and complete Vodafone login
 
-### 2. Open the UI
+After deployment, forward the UI port:
 
-In one terminal:
-
-```sh
+```bash
 kubectl -n default port-forward service/vodafone-balance 8080:8080
 ```
 
-Open [http://127.0.0.1:8080](http://127.0.0.1:8080) and enter the UI credentials you set with the script.
+Open [http://127.0.0.1:8080](http://127.0.0.1:8080) and enter the UI credentials.
 
-### 3. Complete Vodafone login
+In a second terminal, forward noVNC to complete Vodafone login and SMS verification:
 
-In a second terminal:
-
-```sh
+```bash
 kubectl -n default port-forward deployment/vodafone-balance 6080:6080
 ```
 
 Open [http://127.0.0.1:6080/vnc.html?autoconnect=true&resize=scale](http://127.0.0.1:6080/vnc.html?autoconnect=true&resize=scale). In the remote browser, select **Privato**, sign in and complete SMS verification. Return to the dashboard and click **Check balance**.
 
-![Login guidance](docs/screenshot-login.svg)
-
 **Security:** noVNC has no separate authentication. Keep port 6080 private and use `kubectl port-forward` only; never expose it through an ingress or public LoadBalancer. The saved browser profile contains session cookies.
-
-## Docker Compose
-
-For a local Docker run (the ports bind to loopback only):
-
-```sh
-export APP_USERNAME='my-user'
-export APP_PASSWORD='use-a-long-random-password'
-docker compose up -d
-```
-
-The profile is stored in a named Docker volume. Open the UI at `http://127.0.0.1:8080`; the noVNC browser is at `http://127.0.0.1:6080/vnc.html?autoconnect=true&resize=scale`.
 
 ## API
 
 The same HTTP Basic Auth credentials protect the API:
 
-```sh
+```bash
 curl -u "$APP_USERNAME:$APP_PASSWORD" -X POST http://127.0.0.1:8080/api/balance
 curl -u "$APP_USERNAME:$APP_PASSWORD" http://127.0.0.1:8080/api/status
 curl -u "$APP_USERNAME:$APP_PASSWORD" http://127.0.0.1:8080/api/info
@@ -100,16 +96,12 @@ curl -u "$APP_USERNAME:$APP_PASSWORD" http://127.0.0.1:8080/api/info
 - `GET /api/info` returns the app name/version, process startup time, namespace and running image.
 - `GET /healthz` is an unauthenticated Kubernetes health probe.
 
-## Build and publish
-
-GitHub Actions builds and publishes `ghcr.io/masterlog80/vodafone-balance:latest` and a commit-SHA tag for both AMD64 and ARM64 when `main` changes. The image must be readable by your cluster. If you make the GHCR package private, configure an image pull secret.
-
 ## Troubleshooting
 
 - **Login required:** open noVNC, complete Vodafone login/SMS verification, then retry.
 - **Balance not detected:** inspect the authenticated page in noVNC. The parser fails rather than guessing if the page changes.
-- **Image displays fallback value:** check the ServiceAccount/Role/RoleBinding and the pod logs. The RBAC permission is intentionally limited to reading the app's own Pod.
-- **ImagePullBackOff:** verify the GitHub Actions run and GHCR package visibility.
+- **Image displays fallback value:** check the ServiceAccount/Role/RoleBinding and the pod logs.
+- **ImagePullBackOff:** verify the image was pushed to `zot.salvetti.info/vodafone-balance` and that the cluster can pull it.
 - **PVC pending:** check the default StorageClass in K3s.
 - **Session expired:** sign in again through noVNC; Vodafone may periodically expire sessions.
 

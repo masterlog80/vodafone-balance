@@ -28,7 +28,7 @@ Screenshots are illustrative UI previews; the displayed balance and runtime valu
 
 ## Deploy to K3s
 
-The included manifest deploys everything in the `default` namespace. It creates the ServiceAccount, namespace-scoped Role/RoleBinding, PVC, Deployment and ClusterIP Service. The application ServiceAccount can only read the Pod named `vodafone-balance` in `default`, solely to display the image actually running.
+The included manifest deploys everything in the `default` namespace. It creates the ServiceAccount, namespace-scoped Role/RoleBinding, PVC, Deployment and ClusterIP Service. The application ServiceAccount has read-only `get` access to Pod objects in `default` (no list/watch access, Secrets, or other resource types). The app only requests its own Pod by name to display the image actually running.
 
 ### 1. Deploy using the script
 

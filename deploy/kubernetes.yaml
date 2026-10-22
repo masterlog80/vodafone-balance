@@ -66,7 +66,7 @@ spec:
         fsGroup: 10001
       containers:
         - name: app
-          image: ghcr.io/masterlog80/vodafone-balance:latest
+          image: zot.salvetti.info/vodafone-balance:latest
           imagePullPolicy: Always
           ports:
             - name: http
@@ -85,7 +85,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: IMAGE_NAME
-              value: ghcr.io/masterlog80/vodafone-balance:latest
+              value: zot.salvetti.info/vodafone-balance:latest
             - name: APP_USERNAME
               valueFrom:
                 secretKeyRef:

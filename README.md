@@ -48,11 +48,10 @@ The script requires Docker, curl, Git, and (for the pending pull-request check/v
 
 The Dockerfile version label is the source of the initial version; the shared script proposes the next version based on tags already present in the registry. The Kubernetes manifest uses `zot.salvetti.info/vodafone-balance:latest`.
 
-## Kubernetes resources
 
-The manifest deploys into the `default` namespace and creates the ServiceAccount, namespace-scoped Role/RoleBinding, PVC, Deployment and ClusterIP Service. The application ServiceAccount has `get` permission for Pod objects only; it does not have permission to list/watch Pods or read Secrets. The application queries its own Pod by name to display the running image.
+## Before the first deployment
 
-The app requires a secret named `vodafone-balance-auth` in namespace `default`, with keys `username` and `password`. Create it before deployment if it does not already exist:
+The Deployment expects a Kubernetes Secret named `vodafone-balance-auth` in namespace `default`, with keys `username` and `password`. Create it before running the shared build/deploy script (the script applies the manifest as part of its deployment step):
 
 ```bash
 kubectl create secret generic vodafone-balance-auth -n default \
@@ -60,6 +59,10 @@ kubectl create secret generic vodafone-balance-auth -n default \
   --from-literal=password='USE_A_LONG_RANDOM_PASSWORD' \
   --dry-run=client -o yaml | kubectl apply -f -
 ```
+
+## Kubernetes resources
+
+The manifest deploys into the `default` namespace and creates the ServiceAccount, namespace-scoped Role/RoleBinding, PVC, Deployment and ClusterIP Service. The application ServiceAccount has `get` permission for Pod objects only; it does not have permission to list/watch Pods or read Secrets. The application queries its own Pod by name to display the running image.
 
 ## Access the UI and complete Vodafone login
 

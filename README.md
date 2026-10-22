@@ -1,94 +1,117 @@
 # Vodafone Balance
 
-A small self-hosted service for checking the remaining credit shown in Vodafone Italy's authenticated **Fai da te** website. The browser and its profile run inside a container in K3s; no Python, Playwright, Chromium, or other modules need to be installed on the Linux host.
+A self-hosted dashboard for checking the remaining credit on a Vodafone Italy prepaid SIM through the authenticated **Fai da te** website. The browser, its persistent profile, and all application dependencies run inside a container.
 
-## Why browser automation?
+![Vodafone Balance dashboard](docs/screenshot-dashboard.svg)
 
-Vodafone's consumer guidance lists the My Vodafone app and the authenticated Fai da te area for checking remaining credit. Its `contatori.vodafone.it` page is documented for data SIMs only. The open-source [PrepaidBalance](https://github.com/mueller-ma/PrepaidBalance) project parses USSD responses, which requires a device/provider path that is not available to this deployment.
+## Features
 
-This project automates the authenticated website instead. It does not bypass MFA or attempt to defeat Vodafone's access controls. You complete the login and SMS challenge yourself in the browser window. Vodafone may still expire the session and require login again.
+- Dark responsive UI in the same style as my other self-hosted dashboards.
+- Shows the **app name, startup time, application version and live Kubernetes image name:tag** in the bottom bar.
+- Reads the running image from the current Pod object using a dedicated ServiceAccount with only `get` permission on that Pod.
+- Manual Vodafone login and SMS MFA; the browser profile persists on a PVC.
+- HTTP Basic Authentication on the UI and API.
+- JSON API for balance/status and a deploy script.
+- Multi-architecture container image for `linux/amd64` and `linux/arm64`.
 
-## Current status / limitations
+## Screenshots
 
-- First version / proof of concept; Vodafone may change the login or account page at any time.
-- The balance parser intentionally fails rather than returning a random price if it cannot confidently find an amount near a credit-related label.
-- The browser profile contains authentication cookies and must be treated as a secret. It is stored only on the Kubernetes PVC, never in Git.
-- The application has HTTP Basic Authentication. Keep the Service private (ClusterIP) and access it through `kubectl port-forward` or a separately secured ingress.
-- noVNC has no separate login. Do not expose port 6080 through an ingress or public LoadBalancer; use `kubectl port-forward` only.
-- Do not use this as a financial source of truth until you have verified its result against Vodafone's own page.
+### Main dashboard
 
-## Build image
+![Dashboard with balance, runtime information and image footer](docs/screenshot-dashboard.svg)
 
-The GitHub Actions workflow builds and pushes multi-architecture images (`linux/amd64` and `linux/arm64`) to GHCR on pushes to `main`. If GHCR package visibility is private, configure an imagePullSecret in the namespace; public is simplest for a personal deployment because the image contains no credentials.
+### First login / SMS verification
+
+![Instructions for completing Vodafone authentication in the persistent browser](docs/screenshot-login.svg)
+
+Screenshots are illustrative UI previews; the displayed balance and runtime values are sample data, not a live Vodafone account.
 
 ## Deploy to K3s
 
-### 1. Create an application login secret
+The included manifest deploys everything in the `default` namespace. It creates the ServiceAccount, namespace-scoped Role/RoleBinding, PVC, Deployment and ClusterIP Service. The application ServiceAccount can only read the Pod named `vodafone-balance` in `default`, solely to display the image actually running.
 
-Choose a username and a strong password for this web UI. Do not commit these values to Git:
+### 1. Deploy using the script
 
-```sh
-kubectl create namespace vodafone-balance
-kubectl -n vodafone-balance create secret generic vodafone-balance-auth \
-  --from-literal=username='choose-a-username' \
-  --from-literal=password='replace-with-a-long-random-password'
-```
-
-If the namespace already exists, the first command may report `AlreadyExists`; continue with the Secret command. To update the Secret later, use `kubectl edit secret` or delete and recreate it.
-
-### 2. Apply Kubernetes resources
-
-Wait until the GitHub Actions build has completed and the GHCR `latest` image exists, then run:
+Run from a clone of this repository. The script prompts for UI credentials (password input is hidden), creates/updates the Kubernetes Secret without saving credentials in Git, applies the manifest, and waits for rollout:
 
 ```sh
-kubectl apply -f deploy/kubernetes.yaml
-kubectl -n vodafone-balance rollout status deployment/vodafone-balance
+git clone https://github.com/masterlog80/vodafone-balance.git
+cd vodafone-balance
+chmod +x deploy.sh
+./deploy.sh
 ```
 
-The deployment expects the image `ghcr.io/masterlog80/vodafone-balance:latest`. If GHCR is private, create an image pull secret and reference it in the Deployment before applying.
+You can pass credentials non-interactively, for example from a secret manager or CI:
 
-### 3. Open the web UI
+```sh
+APP_USERNAME='my-user' APP_PASSWORD='use-a-long-random-password' ./deploy.sh
+```
+
+The script needs `kubectl` configured for your K3s cluster. The application itself needs no Python, Playwright, Chromium or other application modules installed on the host.
+
+### 2. Open the UI
 
 In one terminal:
 
 ```sh
-kubectl -n vodafone-balance port-forward service/vodafone-balance 8080:8080
+kubectl -n default port-forward service/vodafone-balance 8080:8080
 ```
 
-Open [http://127.0.0.1:8080](http://127.0.0.1:8080) and enter the UI username/password created above.
+Open [http://127.0.0.1:8080](http://127.0.0.1:8080) and enter the UI credentials you set with the script.
 
-### 4. Complete Vodafone login once
+### 3. Complete Vodafone login
 
-In another terminal:
+In a second terminal:
 
 ```sh
-kubectl -n vodafone-balance port-forward deployment/vodafone-balance 6080:6080
+kubectl -n default port-forward deployment/vodafone-balance 6080:6080
 ```
 
-Open [http://127.0.0.1:6080/vnc.html?autoconnect=true&resize=scale](http://127.0.0.1:6080/vnc.html?autoconnect=true&resize=scale). If needed, click **Connect** in noVNC. In the browser window, choose **Privato**, sign in to Vodafone, and complete any SMS verification. Leave the browser open; the profile is saved on the PVC.
+Open [http://127.0.0.1:6080/vnc.html?autoconnect=true&resize=scale](http://127.0.0.1:6080/vnc.html?autoconnect=true&resize=scale). In the remote browser, select **Privato**, sign in and complete SMS verification. Return to the dashboard and click **Check balance**.
 
-Return to the web UI and click **Check balance**. If Vodafone expires the session, repeat the manual login step. Avoid exposing noVNC to the internet.
+![Login guidance](docs/screenshot-login.svg)
 
-### 5. API
+**Security:** noVNC has no separate authentication. Keep port 6080 private and use `kubectl port-forward` only; never expose it through an ingress or public LoadBalancer. The saved browser profile contains session cookies.
 
-With the same HTTP Basic Auth credentials:
+## Docker Compose
+
+For a local Docker run (the ports bind to loopback only):
 
 ```sh
-curl -u 'choose-a-username:replace-with-a-long-random-password' \
-  -X POST http://127.0.0.1:8080/api/balance
-curl -u 'choose-a-username:replace-with-a-long-random-password' \
-  http://127.0.0.1:8080/api/status
+export APP_USERNAME='my-user'
+export APP_PASSWORD='use-a-long-random-password'
+docker compose up -d
 ```
 
-`POST /api/balance` navigates to Vodafone and tries to read the balance. A failure returns HTTP 502 and a human-readable error. `GET /api/status` returns the last successful reading and current error state.
+The profile is stored in a named Docker volume. Open the UI at `http://127.0.0.1:8080`; the noVNC browser is at `http://127.0.0.1:6080/vnc.html?autoconnect=true&resize=scale`.
+
+## API
+
+The same HTTP Basic Auth credentials protect the API:
+
+```sh
+curl -u "$APP_USERNAME:$APP_PASSWORD" -X POST http://127.0.0.1:8080/api/balance
+curl -u "$APP_USERNAME:$APP_PASSWORD" http://127.0.0.1:8080/api/status
+curl -u "$APP_USERNAME:$APP_PASSWORD" http://127.0.0.1:8080/api/info
+```
+
+- `POST /api/balance` attempts to read the current balance and returns JSON.
+- `GET /api/status` returns the last reading, error state and runtime metadata.
+- `GET /api/info` returns the app name/version, process startup time, namespace and running image.
+- `GET /healthz` is an unauthenticated Kubernetes health probe.
+
+## Build and publish
+
+GitHub Actions builds and publishes `ghcr.io/masterlog80/vodafone-balance:latest` and a commit-SHA tag for both AMD64 and ARM64 when `main` changes. The image must be readable by your cluster. If you make the GHCR package private, configure an image pull secret.
 
 ## Troubleshooting
 
-- **The UI says login may be required:** open noVNC, complete Vodafone login/MFA, then try again.
-- **Could not confidently identify the residual credit:** inspect the page shown in noVNC. The Vodafone layout may have changed; do not trust a guessed amount.
-- **ImagePullBackOff:** check the Actions build succeeded and that the GHCR package is readable by your cluster.
+- **Login required:** open noVNC, complete Vodafone login/SMS verification, then retry.
+- **Balance not detected:** inspect the authenticated page in noVNC. The parser fails rather than guessing if the page changes.
+- **Image displays fallback value:** check the ServiceAccount/Role/RoleBinding and the pod logs. The RBAC permission is intentionally limited to reading the app's own Pod.
+- **ImagePullBackOff:** verify the GitHub Actions run and GHCR package visibility.
 - **PVC pending:** check the default StorageClass in K3s.
-- **Browser exits or the pod restarts:** inspect `kubectl -n vodafone-balance logs deployment/vodafone-balance`. The profile persists on the PVC, but browser processes themselves do not survive a pod restart.
+- **Session expired:** sign in again through noVNC; Vodafone may periodically expire sessions.
 
 ## References
 

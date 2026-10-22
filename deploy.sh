@@ -16,8 +16,7 @@ fi
 [[ -n "$APP_USERNAME" && -n "$APP_PASSWORD" ]] || { echo "ERROR: username/password cannot be empty." >&2; exit 1; }
 
 echo "Applying Vodafone Balance resources in namespace '$NAMESPACE'..."
-# Manifest is designed for default. For an alternate namespace, use kubectl's
-# namespace override and ensure the Secret is created in that same namespace.
+# The manifest and all resources are intentionally fixed to the default namespace.
 kubectl create secret generic "$SECRET_NAME" -n "$NAMESPACE" \
   --from-literal=username="$APP_USERNAME" \
   --from-literal=password="$APP_PASSWORD" \

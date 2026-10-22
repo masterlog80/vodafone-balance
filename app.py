@@ -10,6 +10,7 @@ from functools import wraps
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+from urllib.parse import urlsplit
 
 from flask import Flask, Response, jsonify, request
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
@@ -28,6 +29,10 @@ FALLBACK_IMAGE = os.getenv("IMAGE_NAME", "zot.salvetti.info/vodafone-balance:lat
 
 app = Flask(__name__)
 browser_state = {"page": None, "context": None, "last_check": None, "last_balance": None, "last_error": None}
+# Opt-in, in-memory metadata capture for troubleshooting the current Vodafone web flow.
+# Request/response bodies, headers, cookies, query strings, and field values are never stored.
+network_diagnostics = {"enabled": False, "events": []}
+NETWORK_EVENT_LIMIT = 80
 playwright_runtime = None
 pod_info_cache = {"image": None, "checked_at": 0}
 
@@ -84,6 +89,97 @@ def app_info():
     }
 
 
+
+def _safe_url_path(raw_url):
+    """Keep endpoint shape while removing query strings and likely personal identifiers."""
+    path = urlsplit(raw_url).path or "/"
+    path = re.sub(r"(?i)[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}", "{id}", path)
+    path = re.sub(r"(?<![A-Za-z])\d{5,}(?![A-Za-z])", "{id}", path)
+    parts = []
+    for part in path.split("/"):
+        if "@" in part or len(part) > 48:
+            part = "{redacted}"
+        elif len(part) >= 16 and re.search(r"\d", part) and re.fullmatch(r"[A-Za-z0-9_-]+", part):
+            part = "{id}"
+        parts.append(part)
+    return "/".join(parts)[:240] or "/"
+
+
+def _json_shape(value, depth=0):
+    """Describe JSON structure using key names and type labels only, never values."""
+    if isinstance(value, dict):
+        keys = sorted(str(key) for key in value.keys())[:40]
+        result = {"type": "object", "keys": keys}
+        if depth < 2:
+            children = {}
+            for key, child in list(value.items())[:10]:
+                if isinstance(child, (dict, list)):
+                    children[str(key)[:80]] = _json_shape(child, depth + 1)
+            if children:
+                result["children"] = children
+        return result
+    if isinstance(value, list):
+        result = {"type": "array", "length_bucket": "0" if not value else "1+"}
+        if value:
+            result["item_shape"] = _json_shape(value[0], depth + 1) if depth < 2 else (
+                {"type": "object", "keys": sorted(str(k) for k in value[0].keys())[:40]}
+                if isinstance(value[0], dict) else {"type": type(value[0]).__name__}
+            )
+        return result
+    if value is None:
+        return {"type": "null"}
+    if isinstance(value, bool):
+        return {"type": "boolean"}
+    if isinstance(value, (int, float)):
+        return {"type": "number"}
+    if isinstance(value, str):
+        return {"type": "string"}
+    return {"type": "other"}
+
+
+def capture_network_request(request_obj):
+    """Capture sanitized metadata from completed Vodafone-origin XHR/fetch requests."""
+    if not network_diagnostics["enabled"]:
+        return
+    try:
+        if request_obj.resource_type not in ("xhr", "fetch"):
+            return
+        parsed = urlsplit(request_obj.url)
+        host = (parsed.hostname or "").lower()
+        if host != "vodafone.it" and not host.endswith(".vodafone.it"):
+            return
+        response = request_obj.response()
+        if response is None:
+            return
+
+        item = {
+            "method": request_obj.method[:12],
+            "host": host[:120],
+            "path": _safe_url_path(request_obj.url),
+            "resource_type": request_obj.resource_type,
+            "status": int(response.status),
+            "content_type": str(response.headers.get("content-type", "")).split(";", 1)[0][:80],
+        }
+        content_type = item["content_type"].lower()
+        if "json" in content_type:
+            try:
+                item["json_shape"] = _json_shape(response.json())
+            except Exception:
+                item["json_shape"] = {"type": "unavailable"}
+
+        events = network_diagnostics["events"]
+        events.append(item)
+        if len(events) > NETWORK_EVENT_LIMIT:
+            del events[:-NETWORK_EVENT_LIMIT]
+    except Exception:
+        # Diagnostics must never interrupt the actual balance check.
+        return
+
+
+def attach_network_diagnostics(page):
+    page.on("requestfinished", capture_network_request)
+
+
 def start_display():
     subprocess.Popen(["Xvfb", ":99", "-screen", "0", "1440x900x24", "-ac"],
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -107,6 +203,7 @@ def start_browser():
     browser_state["context"] = context
     page = context.pages[0] if context.pages else context.new_page()
     browser_state["page"] = page
+    attach_network_diagnostics(page)
     try:
         page.goto(VODAFONE_LOGIN_URL, wait_until="domcontentloaded", timeout=60000)
         browser_state["last_error"] = None
@@ -245,6 +342,40 @@ $('theme-toggle').addEventListener('click',()=>applyTheme(document.documentEleme
 loadInfo();loadStatus();
 setInterval(()=>{if(refreshSeconds===0)return;if(remaining>1){remaining--}else{remaining=refreshSeconds;checkBalance(true)}updateRing()},1000);
 </script></body></html>"""
+
+
+
+@app.post("/api/diagnostics/network/start")
+@require_auth
+def start_network_diagnostics():
+    """Start collecting sanitized request metadata for the next manual balance check."""
+    if browser_state.get("page") is None:
+        return jsonify({"error": "Browser is not ready"}), 503
+    network_diagnostics["events"].clear()
+    network_diagnostics["enabled"] = True
+    return jsonify({
+        "enabled": True,
+        "message": "Capture enabled. Now run one balance check, then GET /api/diagnostics/network.",
+        "stored_fields": ["method", "host", "sanitized_path", "resource_type", "status", "content_type", "JSON key/type shape only"],
+        "excluded": ["request/response values", "headers", "cookies", "query strings", "credentials", "tokens", "raw bodies"],
+    })
+
+
+@app.get("/api/diagnostics/network")
+@require_auth
+def read_network_diagnostics():
+    return jsonify({
+        "enabled": network_diagnostics["enabled"],
+        "count": len(network_diagnostics["events"]),
+        "events": network_diagnostics["events"],
+    })
+
+
+@app.post("/api/diagnostics/network/stop")
+@require_auth
+def stop_network_diagnostics():
+    network_diagnostics["enabled"] = False
+    return jsonify({"enabled": False, "retained_events": len(network_diagnostics["events"])})
 
 
 @app.get("/healthz")

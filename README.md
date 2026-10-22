@@ -6,8 +6,10 @@ A self-hosted dashboard for checking the remaining credit on a Vodafone Italy pr
 
 ## Features
 
-- Dark responsive UI in the same style as my other self-hosted dashboards.
-- Shows the **app name, startup time, application version and live Kubernetes image name:tag** in the bottom bar.
+- Responsive dashboard styled to match the top bar, cards, status indicators and bottom bar used by `rk3566-gpu-stress` and `wireguard-monitor`.
+- **Dark/light mode** toggle in the top bar; the selected theme is remembered in the browser.
+- **Automatic balance refresh** with selectable intervals (off, 5, 10, 15, 30 or 60 minutes), a countdown ring, and a manual refresh button. The setting is remembered in the browser.
+- Bottom bar shows the **app name, process startup time, image name:tag and app version**; the version uses the same pill/badge treatment as the reference dashboard.
 - Reads the running image from the current Pod object using a dedicated ServiceAccount with read-only Pod access.
 - Manual Vodafone login and SMS MFA; the browser profile persists on a PVC.
 - HTTP Basic Authentication on the UI and API.
@@ -22,7 +24,7 @@ A self-hosted dashboard for checking the remaining credit on a Vodafone Italy pr
 
 ![Instructions for completing Vodafone authentication in the persistent browser](docs/screenshot-login.svg)
 
-Screenshots are illustrative UI previews; the displayed balance and runtime values are sample data, not a live Vodafone account.
+The preview images are illustrative mockups, not captures of a live Vodafone session. The balance and runtime values shown in them are sample data. The running dashboard now includes the matching header controls, persistent dark/light theme, selectable automatic refresh and reference-style footer.
 
 ## Clone & build
 

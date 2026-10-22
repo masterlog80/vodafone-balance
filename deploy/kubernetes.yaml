@@ -1,16 +1,42 @@
 apiVersion: v1
-kind: Namespace
+kind: ServiceAccount
 metadata:
-  name: vodafone-balance
+  name: vodafone-balance-sa
+  namespace: default
+---
+# Read only this application's own Pod object to display the running image:tag.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: vodafone-balance-pod-reader
+  namespace: default
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    resourceNames: ["vodafone-balance"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: vodafone-balance-pod-reader
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    name: vodafone-balance-sa
+    namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: vodafone-balance-pod-reader
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: vodafone-balance-profile
-  namespace: vodafone-balance
+  namespace: default
 spec:
-  accessModes:
-    - ReadWriteOnce
+  accessModes: [ReadWriteOnce]
   resources:
     requests:
       storage: 1Gi
@@ -19,13 +45,14 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: vodafone-balance
-  namespace: vodafone-balance
+  namespace: default
   labels:
     app.kubernetes.io/name: vodafone-balance
 spec:
   replicas: 1
   strategy:
     type: Recreate
+    rollingUpdate: null
   selector:
     matchLabels:
       app.kubernetes.io/name: vodafone-balance
@@ -34,6 +61,8 @@ spec:
       labels:
         app.kubernetes.io/name: vodafone-balance
     spec:
+      serviceAccountName: vodafone-balance-sa
+      automountServiceAccountToken: true
       securityContext:
         fsGroup: 10001
       containers:
@@ -48,6 +77,16 @@ spec:
           env:
             - name: PROFILE_DIR
               value: /data/profile
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: IMAGE_NAME
+              value: ghcr.io/masterlog80/vodafone-balance:latest
             - name: APP_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -83,8 +122,7 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
-              drop:
-                - ALL
+              drop: ["ALL"]
             seccompProfile:
               type: RuntimeDefault
       volumes:
@@ -96,7 +134,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: vodafone-balance
-  namespace: vodafone-balance
+  namespace: default
 spec:
   type: ClusterIP
   selector:

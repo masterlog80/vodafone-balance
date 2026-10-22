@@ -163,7 +163,12 @@ def main() -> int:
             {"username": username, "password": password},
             login_headers,
         )
-        require_ok("login", status, login_response)
+        if status < 200 or status >= 300 or not isinstance(login_response, dict):
+            if contains_mfa_marker(login_response):
+                print("   The login endpoint returned an HTTP response with an MFA/verification marker.")
+                print("RESULT: this legacy API flow does not complete login unattended.")
+                return 4
+            require_ok("login", status, login_response)
         description = login_response.get("description")
         login_obj = response_obj(login_response)
         sims = login_obj.get("sims")

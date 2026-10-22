@@ -124,17 +124,17 @@ def read_balance():
     except PlaywrightTimeoutError:
         pass
     body = page.locator("body").inner_text(timeout=15000)
-    normalized = re.sub(r"[ \\t]+", " ", body)
+    normalized = re.sub(r"[ \t]+", " ", body)
     if re.search(r"(inserisci|username|password|accedi|codice.*sms|codice di verifica)", normalized, re.I) and not re.search(r"credito residuo", normalized, re.I):
         message = "Login may be required. Complete Vodafone login/SMS verification in the browser window, then retry."
         browser_state["last_error"] = message
         raise RuntimeError(message)
 
-    lines = [re.sub(r"\\s+", " ", line).strip() for line in body.splitlines() if line.strip()]
+    lines = [re.sub(r"\s+", " ", line).strip() for line in body.splitlines() if line.strip()]
     candidates = []
     patterns = [
-        re.compile(r"(?<!\\d)(\\d{1,4}(?:[.,]\\d{1,2})?)\\s*(?:€|EUR)", re.I),
-        re.compile(r"€\\s*(\\d{1,4}(?:[.,]\\d{1,2})?)", re.I),
+        re.compile(r"(?<!\d)(\d{1,4}(?:[.,]\d{1,2})?)\s*(?:€|EUR)", re.I),
+        re.compile(r"€\s*(\d{1,4}(?:[.,]\d{1,2})?)", re.I),
     ]
     for i, line in enumerate(lines):
         if not re.search(r"credito|residuo|saldo", line, re.I):

@@ -16,7 +16,7 @@ from flask import Flask, Response, jsonify, request
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
 APP_NAME = "Vodafone Balance"
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.3.0"
 VODAFONE_LOGIN_URL = "https://www.vodafone.it/area-utente/fai-da-te/Common/PaginaUnicadiLogin.html"
 PROFILE_DIR = Path(os.getenv("PROFILE_DIR", "/data/profile"))
 APP_USERNAME = os.getenv("APP_USERNAME", "")

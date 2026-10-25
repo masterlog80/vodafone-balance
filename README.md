@@ -26,7 +26,7 @@ A self-hosted dashboard for checking the remaining credit on a Vodafone Italy pr
 
 The preview images are illustrative mockups, not captures of a live Vodafone session. The balance and runtime values shown in them are sample data. The running dashboard now includes the matching header controls, persistent dark/light theme, selectable automatic refresh and reference-style footer.
 
-## Clone & build
+## Clone & build (Linux)
 
 Use the shared [masterlog80/homelab-scripts](https://github.com/masterlog80/homelab-scripts) workflow, as with the other homelab applications. It clones the repository, updates the Docker image metadata/version, builds the image, pushes versioned and `latest` tags to `zot.salvetti.info`, then offers deployment to K3s or Docker Compose based on the host.
 
@@ -50,6 +50,42 @@ The script requires Docker, curl, Git, and (for the pending pull-request check/v
 
 The Dockerfile version label is the source of the initial version; the shared script proposes the next version based on tags already present in the registry. The Kubernetes manifest uses `zot.salvetti.info/vodafone-balance:latest`.
 
+### Clone & build (Mac)
+
+These instructions build and push a **multi-platform** image from a Mac, so the registry can serve the correct image to both `linux/amd64` and `linux/arm64` hosts. Docker Desktop must be running, and the Mac must be able to reach `zot.salvetti.info`.
+
+The commands below clone the repository locally and build from that directory. If the Linux instructions require repository-specific preparation, perform it after cloning and before building. Do not put credentials or private configuration into the image.
+
+```bash
+export REPO="masterlog80/vodafone-balance"
+export DIRNAME="vodafone-balance"
+export REGISTRY="zot.salvetti.info"
+export IMAGE_NAME="vodafone-balance"
+
+git clone "https://github.com/${REPO}.git" "$DIRNAME"
+cd "$DIRNAME"
+
+docker buildx inspect mac-multiplatform >/dev/null 2>&1 || docker buildx create --name mac-multiplatform --driver docker-container
+docker buildx use mac-multiplatform
+docker buildx inspect --bootstrap
+
+VERSION="$(sed -nE 's/.*org.opencontainers.image.version="([^"]+)".*/\1/p' Dockerfile | head -n 1)"
+if [ -z "$VERSION" ]; then
+  echo "Could not read org.opencontainers.image.version from Dockerfile"
+  exit 1
+fi
+
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  --tag $REGISTRY/$IMAGE_NAME:"$VERSION" \
+  --tag $REGISTRY/$IMAGE_NAME:latest \
+  --push \
+  .
+
+docker buildx imagetools inspect $REGISTRY/$IMAGE_NAME:"$VERSION"
+```
+
+The manifest should list both `linux/amd64` and `linux/arm64`. Any `unknown/unknown` entries are BuildKit attestation manifests and are expected. This workflow builds and pushes only; it does not deploy the application. Update the deployment through its normal mechanism (for example, FluxCD) after verifying the image.
 
 ## Before the first deployment
 
@@ -115,3 +151,9 @@ curl -u "$APP_USERNAME:$APP_PASSWORD" http://127.0.0.1:8080/api/info
 - [Vodafone: checking remaining credit](https://www.vodafone.it/privati/area-supporto/pagamenti-controllo-costi/controllo-costi-traffico/controllare-credito-residuo.html)
 - [Vodafone: My Vodafone app features](https://www.vodafone.it/privati/area-supporto/applicazioni/myvodafone-app/cosa-posso-fare-dalla-myvodafone-app.html)
 - [PrepaidBalance (USSD-based Android app)](https://github.com/mueller-ma/PrepaidBalance)
+
+---
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).

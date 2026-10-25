@@ -115,3 +115,35 @@ curl -u "$APP_USERNAME:$APP_PASSWORD" http://127.0.0.1:8080/api/info
 - [Vodafone: checking remaining credit](https://www.vodafone.it/privati/area-supporto/pagamenti-controllo-costi/controllo-costi-traffico/controllare-credito-residuo.html)
 - [Vodafone: My Vodafone app features](https://www.vodafone.it/privati/area-supporto/applicazioni/myvodafone-app/cosa-posso-fare-dalla-myvodafone-app.html)
 - [PrepaidBalance (USSD-based Android app)](https://github.com/mueller-ma/PrepaidBalance)
+
+---
+
+## Build on macOS (Docker Desktop)
+
+These instructions build and push a **multi-platform** image from a Mac, so the registry can serve the correct image to both `linux/amd64` and `linux/arm64` hosts. Docker Desktop must be running, and the Mac must be able to reach `zot.salvetti.info`.
+
+Clone this repository and enter its directory first. Before building, perform any repository-specific preparation described in the Linux **Clone & build** instructions (for example, required configuration-file copies). Do not put credentials or private configuration into the image.
+
+```bash
+docker buildx inspect mac-multiplatform >/dev/null 2>&1 || docker buildx create --name mac-multiplatform --driver docker-container
+docker buildx use mac-multiplatform
+docker buildx inspect --bootstrap
+
+VERSION="$(sed -nE 's/.*org.opencontainers.image.version="([^"]+)".*/\1/p' Dockerfile | head -n 1)"
+if [ -z "$VERSION" ]; then
+  echo "Could not read org.opencontainers.image.version from Dockerfile"
+  exit 1
+fi
+
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  --tag zot.salvetti.info/vodafone-balance:"$VERSION" \
+  --tag zot.salvetti.info/vodafone-balance:latest \
+  --push \
+  .
+
+docker buildx imagetools inspect zot.salvetti.info/vodafone-balance:"$VERSION"
+```
+
+The manifest should list both `linux/amd64` and `linux/arm64`. Any `unknown/unknown` entries are BuildKit attestation manifests and are expected. This workflow builds and pushes only; it does not deploy the application. Update the deployment through its normal mechanism (for example, FluxCD) after verifying the image.
+

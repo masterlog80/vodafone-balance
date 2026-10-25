@@ -145,3 +145,7 @@ curl -u "$APP_USERNAME:$APP_PASSWORD" http://127.0.0.1:8080/api/info
 - [PrepaidBalance (USSD-based Android app)](https://github.com/mueller-ma/PrepaidBalance)
 
 ---
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).

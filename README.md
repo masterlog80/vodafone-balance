@@ -142,9 +142,11 @@ curl -u "$APP_USERNAME:$APP_PASSWORD" http://127.0.0.1:8080/api/info
 
 ---
 
-## License
+---
 
-This project is licensed under the [MIT License](LICENSE).
+## Versioning
+
+The application version and published image tags are managed by this repository's build/release workflow. See the Dockerfile and build instructions for the version source and published tags.
 
 ---
 
@@ -159,3 +161,11 @@ This project is licensed under the [MIT License](LICENSE).
 ![Instructions for completing Vodafone authentication in the persistent browser](docs/screenshot-login.svg)
 
 The preview images are illustrative mockups, not captures of a live Vodafone session. The balance and runtime values shown in them are sample data. The running dashboard now includes the matching header controls, persistent dark/light theme, selectable automatic refresh and reference-style footer.
+
+---
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
+---

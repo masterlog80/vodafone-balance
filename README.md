@@ -54,9 +54,17 @@ The Dockerfile version label is the source of the initial version; the shared sc
 
 These instructions build and push a **multi-platform** image from a Mac, so the registry can serve the correct image to both `linux/amd64` and `linux/arm64` hosts. Docker Desktop must be running, and the Mac must be able to reach `zot.salvetti.info`.
 
-Clone this repository and enter its directory first. Before building, perform any repository-specific preparation described in the Linux **Clone & build** instructions (for example, required configuration-file copies). Do not put credentials or private configuration into the image.
+The commands below clone the repository locally and build from that directory. If the Linux instructions require repository-specific preparation, perform it after cloning and before building. Do not put credentials or private configuration into the image.
 
 ```bash
+export REPO="masterlog80/vodafone-balance"
+export DIRNAME="vodafone-balance"
+export REGISTRY="zot.salvetti.info"
+export IMAGE_NAME="vodafone-balance"
+
+git clone "https://github.com/${REPO}.git" "$DIRNAME"
+cd "$DIRNAME"
+
 docker buildx inspect mac-multiplatform >/dev/null 2>&1 || docker buildx create --name mac-multiplatform --driver docker-container
 docker buildx use mac-multiplatform
 docker buildx inspect --bootstrap
@@ -69,12 +77,12 @@ fi
 
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  --tag zot.salvetti.info/vodafone-balance:"$VERSION" \
-  --tag zot.salvetti.info/vodafone-balance:latest \
+  --tag $REGISTRY/$IMAGE_NAME:"$VERSION" \
+  --tag $REGISTRY/$IMAGE_NAME:latest \
   --push \
   .
 
-docker buildx imagetools inspect zot.salvetti.info/vodafone-balance:"$VERSION"
+docker buildx imagetools inspect $REGISTRY/$IMAGE_NAME:"$VERSION"
 ```
 
 The manifest should list both `linux/amd64` and `linux/arm64`. Any `unknown/unknown` entries are BuildKit attestation manifests and are expected. This workflow builds and pushes only; it does not deploy the application. Update the deployment through its normal mechanism (for example, FluxCD) after verifying the image.

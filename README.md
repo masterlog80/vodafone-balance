@@ -14,18 +14,6 @@ A self-hosted dashboard for checking the remaining credit on a Vodafone Italy pr
 - Manual Vodafone login and SMS MFA; the browser profile persists on a PVC.
 - HTTP Basic Authentication on the UI and API.
 
-## Screenshots
-
-### Main dashboard
-
-![Dashboard with balance, runtime information and image footer](docs/screenshot-dashboard.svg)
-
-### First login / SMS verification
-
-![Instructions for completing Vodafone authentication in the persistent browser](docs/screenshot-login.svg)
-
-The preview images are illustrative mockups, not captures of a live Vodafone session. The balance and runtime values shown in them are sample data. The running dashboard now includes the matching header controls, persistent dark/light theme, selectable automatic refresh and reference-style footer.
-
 ## Clone & build (Linux)
 
 Use the shared [masterlog80/homelab-scripts](https://github.com/masterlog80/homelab-scripts) workflow, as with the other homelab applications. It clones the repository, updates the Docker image metadata/version, builds the image, pushes versioned and `latest` tags to `zot.salvetti.info`, then offers deployment to K3s or Docker Compose based on the host.
@@ -157,3 +145,17 @@ curl -u "$APP_USERNAME:$APP_PASSWORD" http://127.0.0.1:8080/api/info
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
+
+---
+
+## Screenshots
+
+### Main dashboard
+
+![Dashboard with balance, runtime information and image footer](docs/screenshot-dashboard.svg)
+
+### First login / SMS verification
+
+![Instructions for completing Vodafone authentication in the persistent browser](docs/screenshot-login.svg)
+
+The preview images are illustrative mockups, not captures of a live Vodafone session. The balance and runtime values shown in them are sample data. The running dashboard now includes the matching header controls, persistent dark/light theme, selectable automatic refresh and reference-style footer.

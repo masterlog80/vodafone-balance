@@ -26,7 +26,7 @@ A self-hosted dashboard for checking the remaining credit on a Vodafone Italy pr
 
 The preview images are illustrative mockups, not captures of a live Vodafone session. The balance and runtime values shown in them are sample data. The running dashboard now includes the matching header controls, persistent dark/light theme, selectable automatic refresh and reference-style footer.
 
-## Clone & build
+## Clone & build (Linux)
 
 Use the shared [masterlog80/homelab-scripts](https://github.com/masterlog80/homelab-scripts) workflow, as with the other homelab applications. It clones the repository, updates the Docker image metadata/version, builds the image, pushes versioned and `latest` tags to `zot.salvetti.info`, then offers deployment to K3s or Docker Compose based on the host.
 
@@ -50,6 +50,34 @@ The script requires Docker, curl, Git, and (for the pending pull-request check/v
 
 The Dockerfile version label is the source of the initial version; the shared script proposes the next version based on tags already present in the registry. The Kubernetes manifest uses `zot.salvetti.info/vodafone-balance:latest`.
 
+### Clone & build (Mac)
+
+These instructions build and push a **multi-platform** image from a Mac, so the registry can serve the correct image to both `linux/amd64` and `linux/arm64` hosts. Docker Desktop must be running, and the Mac must be able to reach `zot.salvetti.info`.
+
+Clone this repository and enter its directory first. Before building, perform any repository-specific preparation described in the Linux **Clone & build** instructions (for example, required configuration-file copies). Do not put credentials or private configuration into the image.
+
+```bash
+docker buildx inspect mac-multiplatform >/dev/null 2>&1 || docker buildx create --name mac-multiplatform --driver docker-container
+docker buildx use mac-multiplatform
+docker buildx inspect --bootstrap
+
+VERSION="$(sed -nE 's/.*org.opencontainers.image.version="([^"]+)".*/\1/p' Dockerfile | head -n 1)"
+if [ -z "$VERSION" ]; then
+  echo "Could not read org.opencontainers.image.version from Dockerfile"
+  exit 1
+fi
+
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  --tag zot.salvetti.info/vodafone-balance:"$VERSION" \
+  --tag zot.salvetti.info/vodafone-balance:latest \
+  --push \
+  .
+
+docker buildx imagetools inspect zot.salvetti.info/vodafone-balance:"$VERSION"
+```
+
+The manifest should list both `linux/amd64` and `linux/arm64`. Any `unknown/unknown` entries are BuildKit attestation manifests and are expected. This workflow builds and pushes only; it does not deploy the application. Update the deployment through its normal mechanism (for example, FluxCD) after verifying the image.
 
 ## Before the first deployment
 
@@ -117,33 +145,3 @@ curl -u "$APP_USERNAME:$APP_PASSWORD" http://127.0.0.1:8080/api/info
 - [PrepaidBalance (USSD-based Android app)](https://github.com/mueller-ma/PrepaidBalance)
 
 ---
-
-## Build on macOS (Docker Desktop)
-
-These instructions build and push a **multi-platform** image from a Mac, so the registry can serve the correct image to both `linux/amd64` and `linux/arm64` hosts. Docker Desktop must be running, and the Mac must be able to reach `zot.salvetti.info`.
-
-Clone this repository and enter its directory first. Before building, perform any repository-specific preparation described in the Linux **Clone & build** instructions (for example, required configuration-file copies). Do not put credentials or private configuration into the image.
-
-```bash
-docker buildx inspect mac-multiplatform >/dev/null 2>&1 || docker buildx create --name mac-multiplatform --driver docker-container
-docker buildx use mac-multiplatform
-docker buildx inspect --bootstrap
-
-VERSION="$(sed -nE 's/.*org.opencontainers.image.version="([^"]+)".*/\1/p' Dockerfile | head -n 1)"
-if [ -z "$VERSION" ]; then
-  echo "Could not read org.opencontainers.image.version from Dockerfile"
-  exit 1
-fi
-
-docker buildx build \
-  --platform linux/amd64,linux/arm64 \
-  --tag zot.salvetti.info/vodafone-balance:"$VERSION" \
-  --tag zot.salvetti.info/vodafone-balance:latest \
-  --push \
-  .
-
-docker buildx imagetools inspect zot.salvetti.info/vodafone-balance:"$VERSION"
-```
-
-The manifest should list both `linux/amd64` and `linux/arm64`. Any `unknown/unknown` entries are BuildKit attestation manifests and are expected. This workflow builds and pushes only; it does not deploy the application. Update the deployment through its normal mechanism (for example, FluxCD) after verifying the image.
-

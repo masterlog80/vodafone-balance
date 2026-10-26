@@ -140,8 +140,6 @@ curl -u "$APP_USERNAME:$APP_PASSWORD" http://127.0.0.1:8080/api/info
 
 ---
 
----
-
 ## Versioning
 
 The application version and published image tags are managed by this repository's build/release workflow. See the Dockerfile and build instructions for the version source and published tags.
@@ -153,8 +151,6 @@ The application version and published image tags are managed by this repository'
 ### Main dashboard
 
 ![Dashboard with balance, runtime information and image footer](docs/screenshot-dashboard.svg)
-
-![Vodafone Balance dashboard](docs/screenshot-dashboard.svg)
 
 ### First login / SMS verification
 

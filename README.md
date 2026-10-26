@@ -2,8 +2,6 @@
 
 A self-hosted dashboard for checking the remaining credit on a Vodafone Italy prepaid SIM through the authenticated **Fai da te** website. The browser, its persistent profile, and all application dependencies run inside a container.
 
-![Vodafone Balance dashboard](docs/screenshot-dashboard.svg)
-
 ## Features
 
 - Responsive dashboard styled to match the top bar, cards, status indicators and bottom bar used by `rk3566-gpu-stress` and `wireguard-monitor`.
@@ -155,6 +153,8 @@ The application version and published image tags are managed by this repository'
 ### Main dashboard
 
 ![Dashboard with balance, runtime information and image footer](docs/screenshot-dashboard.svg)
+
+![Vodafone Balance dashboard](docs/screenshot-dashboard.svg)
 
 ### First login / SMS verification
 

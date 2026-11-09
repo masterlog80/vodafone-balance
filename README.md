@@ -2,6 +2,8 @@
 
 A self-hosted dashboard for checking the remaining credit on a Vodafone Italy prepaid SIM through the authenticated **Fai da te** website. The browser, its persistent profile, and all application dependencies run inside a container.
 
+---
+
 ## Features
 
 - Responsive dashboard styled to match the top bar, cards, status indicators and bottom bar used by `rk3566-gpu-stress` and `wireguard-monitor`.
@@ -11,6 +13,8 @@ A self-hosted dashboard for checking the remaining credit on a Vodafone Italy pr
 - Reads the running image from the current Pod object using a dedicated ServiceAccount with read-only Pod access.
 - Manual Vodafone login and SMS MFA; the browser profile persists on a PVC.
 - HTTP Basic Authentication on the UI and API.
+
+---
 
 ## Clone & build (Linux)
 
@@ -61,6 +65,8 @@ export GH_TOKEN
 bash -c "$(curl -fsSL -H "Authorization: token ${GH_TOKEN}" https://raw.githubusercontent.com/masterlog80/homelab-scripts/main/clone-build-mac.sh)"
 ```
 
+---
+
 ## Before the first deployment
 
 The Deployment expects a Kubernetes Secret named `vodafone-balance-auth` in namespace `default`, with keys `username` and `password`. Create it before running the shared build/deploy script (the script applies the manifest as part of its deployment step):
@@ -72,9 +78,7 @@ kubectl create secret generic vodafone-balance-auth -n default \
   --dry-run=client -o yaml | kubectl apply -f -
 ```
 
-## Kubernetes resources
-
-The manifest deploys into the `default` namespace and creates the ServiceAccount, namespace-scoped Role/RoleBinding, PVC, Deployment and ClusterIP Service. The application ServiceAccount has `get` permission for Pod objects only; it does not have permission to list/watch Pods or read Secrets. The application queries its own Pod by name to display the running image.
+---
 
 ## Access the UI and complete Vodafone login
 
@@ -96,6 +100,8 @@ Open [http://127.0.0.1:6080/vnc.html?autoconnect=true&resize=scale](http://127.0
 
 **Security:** noVNC has no separate authentication. Keep port 6080 private and use `kubectl port-forward` only; never expose it through an ingress or public LoadBalancer. The saved browser profile contains session cookies.
 
+---
+
 ## API
 
 The same HTTP Basic Auth credentials protect the API:
@@ -111,6 +117,14 @@ curl -u "$APP_USERNAME:$APP_PASSWORD" http://127.0.0.1:8080/api/info
 - `GET /api/info` returns the app name/version, process startup time, namespace and running image.
 - `GET /healthz` is an unauthenticated Kubernetes health probe.
 
+---
+
+## Kubernetes resources
+
+The manifest deploys into the `default` namespace and creates the ServiceAccount, namespace-scoped Role/RoleBinding, PVC, Deployment and ClusterIP Service. The application ServiceAccount has `get` permission for Pod objects only; it does not have permission to list/watch Pods or read Secrets. The application queries its own Pod by name to display the running image.
+
+---
+
 ## Troubleshooting
 
 - **Login required:** open noVNC, complete Vodafone login/SMS verification, then retry.
@@ -119,14 +133,6 @@ curl -u "$APP_USERNAME:$APP_PASSWORD" http://127.0.0.1:8080/api/info
 - **ImagePullBackOff:** verify the image was pushed to `zot.salvetti.info/vodafone-balance` and that the cluster can pull it.
 - **PVC pending:** check the default StorageClass in K3s.
 - **Session expired:** sign in again through noVNC; Vodafone may periodically expire sessions.
-
-## References
-
-- [Vodafone: checking remaining credit](https://www.vodafone.it/privati/area-supporto/pagamenti-controllo-costi/controllo-costi-traffico/controllare-credito-residuo.html)
-- [Vodafone: My Vodafone app features](https://www.vodafone.it/privati/area-supporto/applicazioni/myvodafone-app/cosa-posso-fare-dalla-myvodafone-app.html)
-- [PrepaidBalance (USSD-based Android app)](https://github.com/mueller-ma/PrepaidBalance)
-
----
 
 ---
 
@@ -150,8 +156,14 @@ The preview images are illustrative mockups, not captures of a live Vodafone ses
 
 ---
 
+## References
+
+- [Vodafone: checking remaining credit](https://www.vodafone.it/privati/area-supporto/pagamenti-controllo-costi/controllo-costi-traffico/controllare-credito-residuo.html)
+- [Vodafone: My Vodafone app features](https://www.vodafone.it/privati/area-supporto/applicazioni/myvodafone-app/cosa-posso-fare-dalla-myvodafone-app.html)
+- [PrepaidBalance (USSD-based Android app)](https://github.com/mueller-ma/PrepaidBalance)
+
+---
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
-
----

@@ -50,7 +50,10 @@ export K3S_MANIFEST="deploy/kubernetes.yaml"
 export OPERATIONS=""
 
 GH_TOKEN="${GH_TOKEN:-$GITHUB_TOKEN}"
-[[ -z "$GH_TOKEN" ]] && read -s -p "GitHub token (required - homelab-scripts is private): " GH_TOKEN && echo
+if [ -z "$GH_TOKEN" ]; then
+  printf "GitHub token (required - homelab-scripts is private): "
+  read -rs GH_TOKEN; echo
+fi
 export GH_TOKEN
 
 bash -c "$(curl -fsSL -H "Authorization: token ${GH_TOKEN}" https://raw.githubusercontent.com/masterlog80/homelab-scripts/main/clone-build-mac.sh)"

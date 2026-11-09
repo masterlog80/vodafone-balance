@@ -29,7 +29,7 @@ GH_TOKEN="${GH_TOKEN:-$GITHUB_TOKEN}"
 [[ -z "$GH_TOKEN" ]] && read -s -p "GitHub token (required - homelab-scripts is private): " GH_TOKEN && echo
 export GH_TOKEN
 
-bash -c "$(curl -fsSL -H "Authorization: token ${GH_TOKEN}" https://raw.githubusercontent.com/masterlog80/homelab-scripts/main/clone-build.sh)"
+bash -c "$(curl -fsSL -H "Authorization: token ${GH_TOKEN}" https://raw.githubusercontent.com/masterlog80/homelab-scripts/main/clone-build-linux.sh)"
 ```
 
 The script requires Docker, curl, Git, and (for the pending pull-request check/version detection) `jq`. It asks for confirmation before pushing each tag and before deployment. Because `homelab-scripts` is private, a GitHub token with permission to read that repository is required.
